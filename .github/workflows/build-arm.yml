@@ -1,0 +1,73 @@
+name: Build headscale + derper (ARM)
+
+on:
+  workflow_dispatch:   # 手动点 Run workflow
+  # 如果想每晚 02:00 自动编译，打开下面两行
+  # schedule:
+  #   - cron: '0 2 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - GOARCH: arm64
+            GOARM: ""            # arm64 不需要 GOARM
+            SUFFIX: arm64
+
+          - GOARCH: arm
+            GOARM: 7             # armv7
+            SUFFIX: armv7
+            
+    steps:
+      # ---------- 1. 装 Go 1.24 ----------
+      - name: Install Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.9'   # 正式发布后改成 1.24.x
+
+      # ---------- 2. 克隆 headscale（带最新 tag） ----------
+      - name: Clone headscale
+        run: |
+          git clone https://github.com/juanfont/headscale.git
+          cd headscale
+          latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          git checkout $latestTag
+          echo "HEADSCALE_TAG=$latestTag" >> $GITHUB_ENV
+
+      # ---------- 3. 克隆 tailscale ----------
+      - name: Clone tailscale
+        run: |
+          git clone https://github.com/tailscale/tailscale.git
+
+      # ---------- 4. 交叉编译 headscale ----------
+      - name: Build headscale (linux/${{ matrix.GOARCH }})
+        working-directory: headscale
+        env:
+          GOOS:   linux
+          GOARCH: ${{ matrix.GOARCH }}
+          GOARM:  ${{ matrix.GOARM }}
+        run: |
+          go build -trimpath -ldflags "-s -w -X main.version=${{ env.HEADSCALE_TAG }}" \
+            -o ../out/headscale-${{ matrix.SUFFIX }} .
+
+      # ---------- 5. 交叉编译 derper ----------
+      - name: Build derper (linux/${{ matrix.GOARCH }})
+        working-directory: tailscale/cmd/derper
+        env:
+          GOOS:   linux
+          GOARCH: ${{ matrix.GOARCH }}
+          GOARM:  ${{ matrix.GOARM }}
+        run: |
+          go build -trimpath -ldflags "-s -w" \
+            -o ../../../out/derper-${{ matrix.SUFFIX }} .
+
+      # ---------- 6. 上传成品 ----------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: headscale-derper-${{ matrix.SUFFIX }}
+          path: out/*
+          retention-days: 7
