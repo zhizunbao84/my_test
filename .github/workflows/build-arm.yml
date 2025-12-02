@@ -50,8 +50,12 @@ jobs:
           GOARCH: ${{ matrix.GOARCH }}
           GOARM:  ${{ matrix.GOARM }}
         run: |
-          go build -trimpath -ldflags "-s -w -X main.version=${{ env.HEADSCALE_TAG }}" \
-            -o ../out/headscale-${{ matrix.SUFFIX }} .
+          VERSION=$(git describe --tags)
+          COMMIT=$(git rev-parse HEAD)
+          go build -trimpath \
+            -ldflags="-s -w -X github.com/juanfont/headscale/hscontrol/types.Version=${VERSION} -X github.com/juanfont/headscale/hscontrol/types.GitCommitHash=${COMMIT}" \
+            -o ../out/headscale-${{ matrix.SUFFIX }} . \
+            cmd/headscale/main.go
 
       # ---------- 5. 交叉编译 derper ----------
       - name: Build derper (linux/${{ matrix.GOARCH }})
