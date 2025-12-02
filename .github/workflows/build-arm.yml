@@ -44,7 +44,7 @@ jobs:
 
       # ---------- 4. 交叉编译 headscale ----------
       - name: Build headscale (linux/${{ matrix.GOARCH }})
-        working-directory: headscale
+        working-directory: headscale/cmd/headscale
         env:
           GOOS:   linux
           GOARCH: ${{ matrix.GOARCH }}
@@ -54,8 +54,7 @@ jobs:
           COMMIT=$(git rev-parse HEAD)
           go build -trimpath \
             -ldflags="-s -w -X github.com/juanfont/headscale/hscontrol/types.Version=${VERSION} -X github.com/juanfont/headscale/hscontrol/types.GitCommitHash=${COMMIT}" \
-            -o ../out/headscale-${{ matrix.SUFFIX }} . \
-            cmd/headscale/main.go
+            -o ../out/headscale-${{ matrix.SUFFIX }} .
 
       # ---------- 5. 交叉编译 derper ----------
       - name: Build derper (linux/${{ matrix.GOARCH }})
